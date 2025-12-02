@@ -115,7 +115,6 @@ import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import APPSTORE_CATEGORY_ICONS from '../constants/AppstoreCategoryIcons.ts'
 
 const appstoreEnabled = loadState<boolean>('settings', 'appstoreEnabled', true)
-const developerDocsUrl = loadState<string>('settings', 'appstoreDeveloperDocs', '')
 
 const store = useAppsStore()
 const categories = computed(() => store.categories)

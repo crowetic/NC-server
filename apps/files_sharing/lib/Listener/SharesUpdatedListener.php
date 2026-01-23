@@ -23,6 +23,7 @@ use OCP\IUser;
 use OCP\Share\Events\BeforeShareDeletedEvent;
 use OCP\Share\Events\ShareCreatedEvent;
 use OCP\Share\IManager;
+use OCP\Share\IShare;
 
 /**
  * Listen to various events that can change what shares a user has access to
@@ -52,9 +53,15 @@ class SharesUpdatedListener implements IEventListener {
 		if ($event instanceof UserAddedEvent || $event instanceof UserRemovedEvent) {
 			$this->updateForUser($event->getUser());
 		}
-		if ($event instanceof ShareCreatedEvent || $event instanceof BeforeShareDeletedEvent) {
-			foreach ($this->shareManager->getUsersForShare($event->getShare()) as $user) {
-				$this->updateForUser($user);
+		if ($event instanceof ShareCreatedEvent) {
+			$share = $event->getShare();
+			$shareTarget = $share->getTarget();
+			foreach ($this->shareManager->getUsersForShare($share) as $user) {
+				if ($share->getSharedBy() !== $user->getUID()) {
+					$this->updateForShare($user, $share);
+					// Share target validation might have changed the target, restore it for the next user
+					$share->setTarget($shareTarget);
+				}
 			}
 		}
 	}
@@ -78,6 +85,23 @@ class SharesUpdatedListener implements IEventListener {
 			if (!isset($cachedMounts[$mountKey])) {
 				$this->shareTargetValidator->verifyMountPoint($user, $parentShare, $mountsByPath, $groupedShares);
 			}
+		}
+	}
+
+	private function updateForShare(IUser $user, IShare $share): void {
+		if (isset($this->updatedUsers[$user->getUID()])) {
+			return;
+		}
+		$this->updatedUsers[$user->getUID()] = true;
+
+		$cachedMounts = $this->userMountCache->getMountsForUser($user);
+		$mountPoints = array_map(fn (ICachedMountInfo $mount) => $mount->getMountPoint(), $cachedMounts);
+		$mountsByPath = array_combine($mountPoints, $cachedMounts);
+
+		$mountPoint = '/' . $user->getUID() . '/files/' . trim($share->getTarget(), '/') . '/';
+		$mountKey = $share->getNodeId() . '::' . $mountPoint;
+		if (!isset($cachedMounts[$mountKey])) {
+			$this->shareTargetValidator->verifyMountPoint($user, $share, $mountsByPath, [$share]);
 		}
 	}
 }

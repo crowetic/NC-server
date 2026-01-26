@@ -48,8 +48,16 @@ class FileDisplayResponse extends Response implements ICallbackResponse {
 	 */
 	public function callback(IOutput $output) {
 		if ($output->getHttpResponseCode() !== Http::STATUS_NOT_MODIFIED) {
+			$file = $this->file->read();
+
+			if ($file === false) {
+				$output->setHttpResponseCode(Http::STATUS_NOT_FOUND);
+				$output->setOutput('');
+				return;
+			}
+
 			$output->setHeader('Content-Length: ' . $this->file->getSize());
-			$output->setOutput($this->file->getContent());
+			$output->setReadfile($file);
 		}
 	}
 }

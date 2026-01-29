@@ -247,9 +247,11 @@ class ApiController extends Controller {
 
 	/**
 	 * @param \OCP\Files\Node[] $nodes
+	 * @param ?non-empty-string $mimeTypeFilter limit returned content to this mimetype or mimepart
 	 * @param int $depth The depth to traverse into the contents of each node
+	 * @return list<array{id: int, basename: string, children: array, displayName?: string}>
 	 */
-	private function getChildren(array $nodes, int $depth = 1, int $currentDepth = 0, string $mimeTypeFilter = ''): array {
+	private function getChildren(array $nodes, int $depth = 1, int $currentDepth = 0, ?string $mimeTypeFilter = null): array {
 		if ($currentDepth >= $depth) {
 			return [];
 		}

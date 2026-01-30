@@ -27,7 +27,7 @@ class FileSequence implements ISequence {
 	public function __construct(
 		ITempManager $tempManager,
 	) {
-		$this->workDir = $tempManager->getTempBaseDir() . '/' . self::LOCK_FILE_DIRECTORY;
+		$this->workDir = $tempManager->getTempBaseDir() . '/' . self::LOCK_FILE_DIRECTORY . '/';
 		$this->ensureWorkdirExists();
 	}
 

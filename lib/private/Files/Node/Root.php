@@ -19,6 +19,7 @@ use OCA\Files\ConfigLexicon;
 use OCP\Cache\CappedMemoryCache;
 use OCP\EventDispatcher\IEventDispatcher;
 use OCP\Files\Cache\ICacheEntry;
+use OCP\Files\Config\ICachedMountInfo;
 use OCP\Files\Config\IUserMountCache;
 use OCP\Files\Events\Node\FilesystemTornDownEvent;
 use OCP\Files\IRootFolder;
@@ -411,12 +412,12 @@ class Root extends Folder implements IRootFolder {
 		} else {
 			$user = null;
 		}
-		$mountsContainingFile = $mountCache->getMountsForFileId($id, $user);
+		$mountsContainingFileInfos = $mountCache->getMountsForFileId($id, $user);
 
 		// if the mount isn't in the cache yet, perform a setup first, then try again
-		if (count($mountsContainingFile) === 0) {
+		if (count($mountsContainingFileInfos) === 0) {
 			$setupManager->setupForPath($path, true);
-			$mountsContainingFile = $mountCache->getMountsForFileId($id, $user);
+			$mountsContainingFileInfos = $mountCache->getMountsForFileId($id, $user);
 		}
 
 		// when a user has access through the same storage through multiple paths
@@ -428,16 +429,21 @@ class Root extends Folder implements IRootFolder {
 
 		$mountRootIds = array_map(function ($mount) {
 			return $mount->getRootId();
-		}, $mountsContainingFile);
+		}, $mountsContainingFileInfos);
 		$mountRootPaths = array_map(function ($mount) {
 			return $mount->getRootInternalPath();
-		}, $mountsContainingFile);
+		}, $mountsContainingFileInfos);
 		$mountProviders = array_unique(array_map(function ($mount) {
 			return $mount->getMountProvider();
-		}, $mountsContainingFile));
+		}, $mountsContainingFileInfos));
+		$mountPoints = array_map(fn(ICachedMountInfo $mountInfo) => $mountInfo->getMountPoint(), $mountsContainingFileInfos);
 		$mountRoots = array_combine($mountRootIds, $mountRootPaths);
 
-		$mountsContainingFile = array_filter(array_map($this->mountManager->getMountFromMountInfo(...), $mountsContainingFile));
+		$mounts = $this->mountManager->getMountsByMountProvider($path, $mountProviders);
+		$mountsContainingFile = array_filter($mounts, fn (IMountPoint $mount) => in_array($mount->getMountPoint(), $mountPoints));
+		if (count($mountsContainingFile) == 0) {
+			$mountsContainingFile = array_filter(array_map($this->mountManager->getMountFromMountInfo(...), $mountsContainingFileInfos));
+		}
 
 		if (count($mountsContainingFile) === 0) {
 			if ($user === $this->getAppDataDirectoryName()) {
